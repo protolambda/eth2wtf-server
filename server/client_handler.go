@@ -5,17 +5,20 @@ import (
 	"fmt"
 )
 
-type ChunkGetter func(ctID ContentID, chunkID ChunkID) ChunkContentHandler
-
-type ClientHandler struct {
-	getChunk ChunkGetter
-	send chan<- []byte
+type WorldLike interface {
+	GetChunk(ctID ContentID, chunkID ChunkID) ChunkContentHandler
 }
 
-func NewClientHandler(getChunk ChunkGetter, send chan<- []byte) *ClientHandler {
+type ClientHandler struct {
+	world    WorldLike
+	send     chan<- []byte
+	viewport Viewport
+}
+
+func NewClientHandler(world WorldLike, send chan<- []byte) *ClientHandler {
 	return &ClientHandler{
-		getChunk: getChunk,
-		send:     send,
+		world: world,
+		send:  send,
 	}
 }
 
@@ -36,17 +39,24 @@ func (ch *ClientHandler) OnMessage(msg []byte) {
 	switch msgType {
 	// 1: messages that are content-specific updates.
 	case 1:
-		if len(msg) < 2 {
+		if len(msg) < 6 {
 			return
 		}
 		ctID := ContentID(msg[1])
 		chunkID := ChunkID(binary.LittleEndian.Uint32(msg[2:6]))
-		chunk := ch.getChunk(ctID, chunkID)
+		chunk := ch.world.GetChunk(ctID, chunkID)
 		if chunk == nil {
 			fmt.Printf("ignoring request for unknown chunk content: type: %d chunk: %d\n", ctID, chunkID)
 		} else {
 			chunk.HandleRequest(msg[6:], ch.Send)
 		}
+	case 2:
+		ch.viewport = Viewport{
+			Min: ChunkID(binary.LittleEndian.Uint32(msg[2:6])),
+			Max: ChunkID(binary.LittleEndian.Uint32(msg[6:10])),
+		}
+		// TODO share viewport with world, use pointer ID
+		fmt.Printf("client changed viewport to [%d, %d]\n", ch.viewport.Min, ch.viewport.Max)
 	default:
 		fmt.Printf("unrecognized msgType: %d\n", msgType)
 	}
