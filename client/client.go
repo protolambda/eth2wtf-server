@@ -31,14 +31,12 @@ const (
 
 	// Maximum amounts of messages to buffer to a client before disconnecting them
 	buffedMsgCount = 2000
-
 )
 
 var newline = []byte{'\n'}
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-
 	unregister func()
 
 	// The websocket connection.
@@ -49,7 +47,7 @@ type Client struct {
 
 	handler ClientHandler
 
-	closed bool
+	closed    bool
 	closeLock sync.Mutex
 }
 

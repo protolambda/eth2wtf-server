@@ -1,4 +1,4 @@
-package server
+package common
 
 type ChunkID uint32
 

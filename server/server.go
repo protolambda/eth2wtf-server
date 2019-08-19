@@ -1,20 +1,22 @@
 package server
 
 import (
+	"eth2wtf-server/clh"
 	"eth2wtf-server/client"
 	"eth2wtf-server/hub"
+	"eth2wtf-server/world"
 	"net/http"
 )
 
 type Server struct {
 	clientHub *hub.Hub
-	world *World
+	world     *world.World
 }
 
 func NewServer() *Server {
 	return &Server{
 		clientHub: hub.NewHub(),
-		world: NewWorld(),
+		world:     world.NewWorld(),
 	}
 }
 
@@ -27,5 +29,5 @@ func (s *Server) ServeWs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) NewClientHandler(send chan<- []byte) client.ClientHandler {
-	return NewClientHandler(s.world, send)
+	return clh.NewClientHandler(s.world, send)
 }

@@ -1,6 +1,9 @@
-package server
+package world
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	. "eth2wtf-server/common"
+)
 
 type World struct {
 	chunks map[ChunkID]Chunk
@@ -22,7 +25,7 @@ func (s *World) GetChunk(ctID ContentID, chunkID ChunkID) ChunkContentHandler {
 
 type ContentChunk struct {
 	Content ChunkContentHandler
-	CtID ContentID
+	CtID    ContentID
 	ChunkID ChunkID
 }
 

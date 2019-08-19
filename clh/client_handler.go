@@ -1,7 +1,8 @@
-package server
+package clh
 
 import (
 	"encoding/binary"
+	. "eth2wtf-server/common"
 	"fmt"
 )
 

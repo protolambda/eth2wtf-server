@@ -22,9 +22,9 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		register:        make(chan *client.Client),
-		unregister:      make(chan *client.Client),
-		clients:         make(map[*client.Client]bool),
+		register:   make(chan *client.Client),
+		unregister: make(chan *client.Client),
+		clients:    make(map[*client.Client]bool),
 	}
 }
 
