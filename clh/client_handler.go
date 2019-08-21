@@ -3,15 +3,19 @@ package clh
 import (
 	"encoding/binary"
 	. "eth2wtf-server/common"
+	"eth2wtf-server/common/contenttyp"
+	"eth2wtf-server/common/msgtyp"
 	"fmt"
+	"log"
 )
 
 type WorldLike interface {
-	GetChunk(ctID ContentID, chunkID ChunkID) ChunkContentHandler
+	GetChunk(ctID contenttyp.ContentID, chunkID ChunkID) ChunkContent
 }
 
 type ClientHandler struct {
 	world    WorldLike
+	logger   *log.Logger
 	send     chan<- []byte
 	viewport Viewport
 }
@@ -21,6 +25,14 @@ func NewClientHandler(world WorldLike, send chan<- []byte) *ClientHandler {
 		world: world,
 		send:  send,
 	}
+}
+
+func (ch *ClientHandler) IsViewing(id ChunkID) bool {
+	return id >= ch.viewport.Min && id < ch.viewport.Max
+}
+
+func (ch *ClientHandler) Viewport() Viewport {
+	return ch.viewport
 }
 
 func (ch *ClientHandler) Close() {
@@ -37,21 +49,21 @@ func (ch *ClientHandler) OnMessage(msg []byte) {
 		return
 	}
 	msgType := msg[0]
-	switch msgType {
+	switch msgtyp.MsgTypeID(msgType) {
 	// 1: messages that are content-specific updates.
-	case 1:
+	case msgtyp.ChunkRequest:
 		if len(msg) < 6 {
 			return
 		}
-		ctID := ContentID(msg[1])
+		ctID := contenttyp.ContentID(msg[1])
 		chunkID := ChunkID(binary.LittleEndian.Uint32(msg[2:6]))
 		chunk := ch.world.GetChunk(ctID, chunkID)
 		if chunk == nil {
 			fmt.Printf("ignoring request for unknown chunk content: type: %d chunk: %d\n", ctID, chunkID)
 		} else {
-			chunk.HandleRequest(msg[6:], ch.Send)
+			chunk.HandleRequest(ch.logger, ch, msg[6:])
 		}
-	case 2:
+	case msgtyp.ViewportUpdate:
 		ch.viewport = Viewport{
 			Min: ChunkID(binary.LittleEndian.Uint32(msg[2:6])),
 			Max: ChunkID(binary.LittleEndian.Uint32(msg[6:10])),

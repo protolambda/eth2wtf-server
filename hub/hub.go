@@ -2,6 +2,7 @@ package hub
 
 import (
 	"eth2wtf-server/client"
+	. "eth2wtf-server/common"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -70,4 +71,13 @@ func (h *Hub) Run() {
 			}
 		}
 	}
+}
+
+func (h *Hub) GetViewers(id ChunkID) (out []ReceivePort) {
+	for cl, _ := range h.clients {
+		if cl.IsViewing(id) {
+			out = append(out, cl)
+		}
+	}
+	return
 }

@@ -3,34 +3,51 @@ package world
 import (
 	"encoding/binary"
 	. "eth2wtf-server/common"
+	. "eth2wtf-server/common/contenttyp"
+	"eth2wtf-server/world/headers"
+	"log"
 )
 
 type World struct {
-	chunks map[ChunkID]Chunk
+	chunks map[ChunkID]*Chunk
 }
 
 func NewWorld() *World {
 	return &World{
-		chunks: make(map[ChunkID]Chunk),
+		chunks: make(map[ChunkID]*Chunk),
 	}
 }
 
-func (s *World) GetChunk(ctID ContentID, chunkID ChunkID) ChunkContentHandler {
+func (s *World) ChunkGetter(ctID ContentID) ChunkGetter {
+	return func(id ChunkID) ChunkContent {
+		s.CreateChunkMaybe(id)
+		return s.GetChunk(ctID, id)
+	}
+}
+
+func (s *World) GetChunk(ctID ContentID, chunkID ChunkID) ChunkContent {
 	if c, ok := s.chunks[chunkID]; ok {
-		return c.GetContentChunk(ctID)
+		return &ChunkView{Content: c.GetContentChunk(ctID), CtID: ctID, ChunkID: chunkID}
 	} else {
 		return nil
 	}
 }
 
-type ContentChunk struct {
-	Content ChunkContentHandler
+func (s *World) CreateChunkMaybe(chunkID ChunkID) {
+	if _, ok := s.chunks[chunkID]; !ok {
+		s.chunks[chunkID] = new(Chunk)
+	}
+}
+
+// wrapper around content to provide content and chunk IDs, wrapping the handle-request responses.
+type ChunkView struct {
+	Content ChunkContent
 	CtID    ContentID
 	ChunkID ChunkID
 }
 
-func (c *ContentChunk) HandleRequest(msg []byte, send func(res []byte)) {
-	c.Content.HandleRequest(msg, func(res []byte) {
+func (c *ChunkView) HandleRequest(logger *log.Logger, port ReceivePort, msg []byte) {
+	c.Content.HandleRequest(logger, ReceivePortFn(func(res []byte) {
 		// Add the message type, content type, chunk ID to the message as prefix.
 		dataLen := 2 + 4 + len(res)
 		data := make([]byte, dataLen, dataLen)
@@ -38,15 +55,15 @@ func (c *ContentChunk) HandleRequest(msg []byte, send func(res []byte)) {
 		data[1] = byte(c.CtID)
 		binary.LittleEndian.PutUint32(data[2:6], uint32(c.ChunkID))
 		copy(data[6:], res)
-		send(data)
-	})
+		port.Send(data)
+	}), msg)
 }
 
 type Chunk struct {
-	Headers ContentChunk
+	Headers headers.HeadersChunk
 }
 
-func (c *Chunk) GetContentChunk(ctID ContentID) *ContentChunk {
+func (c *Chunk) GetContentChunk(ctID ContentID) ChunkContent {
 	switch ctID {
 	case 1:
 		return &c.Headers

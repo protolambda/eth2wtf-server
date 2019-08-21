@@ -1,6 +1,7 @@
 package client
 
 import (
+	"eth2wtf-server/common"
 	"fmt"
 	"log"
 	"sync"
@@ -12,6 +13,8 @@ import (
 type ClientHandler interface {
 	Close()
 	OnMessage(msg []byte)
+	IsViewing(id common.ChunkID) bool
+	common.ReceivePort
 }
 
 type MakeClientHandler func(send chan<- []byte) ClientHandler
@@ -61,6 +64,14 @@ func NewClient(conn *websocket.Conn, unregister func(), mkHandler MakeClientHand
 		closed:     false,
 		closeLock:  sync.Mutex{},
 	}
+}
+
+func (c *Client) IsViewing(id common.ChunkID) bool {
+	return c.handler.IsViewing(id)
+}
+
+func (c *Client) Send(msg []byte) {
+	c.handler.Send(msg)
 }
 
 func (c *Client) Close() {

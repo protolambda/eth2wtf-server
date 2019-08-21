@@ -1,1 +1,8 @@
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
+github.com/protolambda/messagediff v1.3.0/go.mod h1:LboJp0EwIbJsePYpzh5Op/9G1/4mIztMRYzzwR0dR2M=
+github.com/protolambda/zrnt v0.8.2 h1:EyGRdKAiBnD4kXbs8B+6yutZh5iZRa586ODKVZTDw1Q=
+github.com/protolambda/zrnt v0.8.2/go.mod h1:UtXAuG+LmZ4QktJQkZ7Ir3/6PGDXA5QZow8MnqBx5iM=
+github.com/protolambda/zssz v0.1.0 h1:suj6xiB1fw15F2+V+a3gHYc8vLb+xkMUK3Mfx1w3Pi0=
+github.com/protolambda/zssz v0.1.0/go.mod h1:a4iwOX5FE7/JkKA+J/PH0Mjo9oXftN6P8NZyL28gpag=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
