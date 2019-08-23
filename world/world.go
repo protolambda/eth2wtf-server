@@ -18,55 +18,56 @@ func NewWorld() *World {
 	}
 }
 
-func (s *World) ChunkGetter(ctID ContentID) ChunkGetter {
-	return func(id ChunkID) ChunkContent {
-		s.CreateChunkMaybe(id)
-		return s.GetChunk(ctID, id)
-	}
-}
-
-func (s *World) GetChunk(ctID ContentID, chunkID ChunkID) ChunkContent {
+func (s *World) GetChunk(chunkID ChunkID) ChunkHandler {
 	if c, ok := s.chunks[chunkID]; ok {
-		return &ChunkView{Content: c.GetContentChunk(ctID), CtID: ctID, ChunkID: chunkID}
+		return c
 	} else {
 		return nil
 	}
 }
 
-func (s *World) CreateChunkMaybe(chunkID ChunkID) {
-	if _, ok := s.chunks[chunkID]; !ok {
-		s.chunks[chunkID] = new(Chunk)
+// GetChunk, but creates the chunk if it doesn't already exist
+func (s *World) CreateChunkMaybe(chunkID ChunkID) ChunkHandler {
+	if v, ok := s.chunks[chunkID]; ok {
+		return v
+	} else {
+		v = &Chunk{chunkID: chunkID}
+		s.chunks[chunkID] = v
+		return v
 	}
 }
 
-// wrapper around content to provide content and chunk IDs, wrapping the handle-request responses.
-type ChunkView struct {
-	Content ChunkContent
-	CtID    ContentID
-	ChunkID ChunkID
+type Chunk struct {
+	headers headers.HeadersChunk
+	chunkID ChunkID
 }
 
-func (c *ChunkView) HandleRequest(logger *log.Logger, port ReceivePort, msg []byte) {
-	c.Content.HandleRequest(logger, ReceivePortFn(func(res []byte) {
+func (c *Chunk) HeadersChunk() *headers.HeadersChunk {
+	return &c.headers
+}
+
+func (c *Chunk) HandleRequest(logger *log.Logger, port ReceivePort, ctID ContentID,  msg []byte) {
+	content := c.GetContent(ctID)
+	if content == nil {
+		logger.Printf("Content type %d was not recognized for chunk %d", ctID, c.chunkID)
+		return
+	}
+	content.HandleRequest(logger, ReceivePortFn(func(res []byte) {
 		// Add the message type, content type, chunk ID to the message as prefix.
 		dataLen := 2 + 4 + len(res)
 		data := make([]byte, dataLen, dataLen)
 		data[0] = 1
-		data[1] = byte(c.CtID)
-		binary.LittleEndian.PutUint32(data[2:6], uint32(c.ChunkID))
+		data[1] = byte(ctID)
+		binary.LittleEndian.PutUint32(data[2:6], uint32(c.chunkID))
 		copy(data[6:], res)
 		port.Send(data)
 	}), msg)
 }
 
-type Chunk struct {
-	Headers headers.HeadersChunk
-}
-
-func (c *Chunk) GetContentChunk(ctID ContentID) ChunkContent {
+func (c *Chunk) GetContent(ctID ContentID) ContentHandler {
 	switch ctID {
 	case 1:
-		return &c.Headers
+		return &c.headers
 	default:
 		return nil
 	}

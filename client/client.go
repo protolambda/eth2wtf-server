@@ -139,7 +139,7 @@ func (c *Client) WritePump() {
 			}
 			//fmt.Printf("%x\n", message)
 			if _, err := w.Write(message); err != nil {
-				fmt.Printf("Error when sending msg to client: %d, err: %v\n", c.id, err)
+				fmt.Printf("Error when sending msg to client: err: %v\n", err)
 			}
 
 			// Add queued chat messages to the current websocket message.

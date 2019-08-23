@@ -15,6 +15,10 @@ import (
 
 const slotsPerChunk = 16
 
+type WithHeaders interface {
+	HeadersChunk() *HeadersChunk
+}
+
 type HeadersChunk struct {
 	Headers []*bh.BeaconBlockHeader
 }
@@ -95,14 +99,20 @@ func (hp *HeadersProducer) Mock() {
 			return
 		}
 		pi := rand.Intn(lookback)
-		// may be nil
-		parent := lastX[len(lastX) - 1 - pi]
+		var parent *bh.BeaconBlockHeader
+		if len(lastX) > pi {
+			// may be nil
+			parent = lastX[len(lastX) - 1 - pi]
+		}
 		newHeader := simHeader(parent)
-		copy(lastX, lastX[1:])
-		lastX[len(lastX)-1] = newHeader
+		if len(lastX) == lookback {
+			copy(lastX, lastX[1:])
+			lastX = lastX[:len(lastX) - 1]
+		}
+		lastX = append(lastX, newHeader)
 		i++
 		hp.Headers <- newHeader
-		time.Sleep(2 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -112,15 +122,17 @@ func (hp *HeadersProducer) Close() {
 }
 
 // The only (synchronous) writer to headers of any chunk
-func (hp *HeadersProducer) Produce(getChunk common.ChunkGetter, getViewing common.ViewersGetter) {
+func (hp *HeadersProducer) Process(getChunk common.ChunkGetter, getViewing common.ViewersGetter) {
 	for {
 		if h, ok := <-hp.Headers; ok {
 			chunkID := common.ChunkID(h.Slot / slotsPerChunk)
-			chunk, ok := getChunk(chunkID).(*HeadersChunk)
+			ch := getChunk(chunkID)
+			chH, ok := ch.(WithHeaders)
 			if !ok {
-				hp.Logger.Printf("Chunk getter returned unexpected instance: %v", chunk)
+				hp.Logger.Printf("Chunk getter returned unexpected instance: %v", chH)
 				continue
 			}
+			chunk := chH.HeadersChunk()
 			index := uint32(len(chunk.Headers))
 			// update headers in chunk
 			chunk.Headers = append(chunk.Headers, h)

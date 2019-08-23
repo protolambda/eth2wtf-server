@@ -10,7 +10,7 @@ import (
 )
 
 type WorldLike interface {
-	GetChunk(ctID contenttyp.ContentID, chunkID ChunkID) ChunkContent
+	GetChunk(chunkID ChunkID) ChunkHandler
 }
 
 type ClientHandler struct {
@@ -57,11 +57,11 @@ func (ch *ClientHandler) OnMessage(msg []byte) {
 		}
 		ctID := contenttyp.ContentID(msg[1])
 		chunkID := ChunkID(binary.LittleEndian.Uint32(msg[2:6]))
-		chunk := ch.world.GetChunk(ctID, chunkID)
-		if chunk == nil {
-			fmt.Printf("ignoring request for unknown chunk content: type: %d chunk: %d\n", ctID, chunkID)
+		handler := ch.world.GetChunk(chunkID)
+		if handler == nil {
+			fmt.Printf("ignoring request for unknown chunk: type: %d chunk: %d\n", ctID, chunkID)
 		} else {
-			chunk.HandleRequest(ch.logger, ch, msg[6:])
+			handler.HandleRequest(ch.logger, ch, ctID, msg[6:])
 		}
 	case msgtyp.ViewportUpdate:
 		ch.viewport = Viewport{

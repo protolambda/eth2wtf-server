@@ -3,9 +3,8 @@ package main
 import (
 	"eth2wtf-server/server"
 	"eth2wtf-server/world/headers"
-	bh "github.com/protolambda/zrnt/eth2/beacon/header"
-	. "eth2wtf-server/common/contenttyp"
 	"flag"
+	bh "github.com/protolambda/zrnt/eth2/beacon/header"
 	"log"
 	"net/http"
 	"os"
@@ -36,7 +35,9 @@ func main() {
 		Logger:  log.New(os.Stdout, "header producer: ", log.LUTC | log.Lshortfile),
 		Closed:  false,
 	}
-	go hp.Produce(s.World().ChunkGetter(HeaderType), s.GetViewers)
+	defer hp.Close()
+	go hp.Process(s.World().CreateChunkMaybe, s.GetViewers)
+	go hp.Mock()
 	// enable clients to connect
 	go s.Run()
 

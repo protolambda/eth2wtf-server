@@ -1,6 +1,9 @@
 package common
 
-import "log"
+import (
+	"eth2wtf-server/common/contenttyp"
+	"log"
+)
 
 type ReceivePort interface{
 	Send(msg []byte)
@@ -14,11 +17,15 @@ func (r ReceivePortFn) Send(msg []byte) {
 
 type ChunkID uint32
 
-type ChunkContent interface {
+type ChunkHandler interface {
+	HandleRequest(logger *log.Logger, recv ReceivePort, ctID contenttyp.ContentID,  msg []byte)
+}
+
+type ContentHandler interface {
 	HandleRequest(logger *log.Logger, recv ReceivePort, msg []byte)
 }
 
-type ChunkGetter func(id ChunkID) ChunkContent
+type ChunkGetter func(id ChunkID) ChunkHandler
 
 type ViewersGetter func(id ChunkID) []ReceivePort
 
