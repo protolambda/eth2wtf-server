@@ -3,6 +3,7 @@ package hub
 import (
 	"eth2wtf-server/client"
 	. "eth2wtf-server/common"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -40,6 +41,15 @@ func (h *Hub) ServeWs(w http.ResponseWriter, r *http.Request, makeClientHandler 
 		// allow any origin to connect.
 		return true
 	}
+
+	if len(h.clients) > 100 {
+		fmt.Println("too many clients!") // TODO temporary safety measure; decide on clients limit later.
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
+	fmt.Println("onboarding new client")
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)

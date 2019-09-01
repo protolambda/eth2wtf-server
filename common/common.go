@@ -12,7 +12,7 @@ type ReceivePort interface{
 type ReceivePortFn func (msg []byte)
 
 func (r ReceivePortFn) Send(msg []byte) {
-	r.Send(msg)
+	r(msg)
 }
 
 type ChunkID uint32
