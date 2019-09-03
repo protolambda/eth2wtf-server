@@ -4,7 +4,6 @@ import (
 	"eth2wtf-server/server"
 	"eth2wtf-server/world/headers"
 	"flag"
-	bh "github.com/protolambda/zrnt/eth2/beacon/header"
 	"log"
 	"net/http"
 	"os"
@@ -31,7 +30,7 @@ func main() {
 	s := server.NewServer()
 
 	hp := &headers.HeadersProducer{
-		Headers: make(chan *bh.BeaconBlockHeader, 10),
+		Headers: make(chan *headers.HeaderData, 10),
 		Logger:  log.New(os.Stdout, "header producer: ", log.LUTC | log.Lshortfile),
 		Closed:  false,
 	}

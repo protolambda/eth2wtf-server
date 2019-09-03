@@ -10,6 +10,7 @@ import (
 	"github.com/protolambda/zssz"
 	"log"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -20,50 +21,93 @@ type WithHeaders interface {
 }
 
 type HeadersChunk struct {
-	Headers []*bh.BeaconBlockHeader
+	Headers []*HeaderData
 }
 
+type HeadersRequest struct {
+	HighestKnown uint32
+	Wanted HeaderIndices
+}
+
+var hdrRequestSSZ = zssz.GetSSZ((*HeadersRequest)(nil))
+
 func (c *HeadersChunk) HandleRequest(logger *log.Logger, recv ReceivePort, msg []byte) {
-	var indices HeaderIndices
-	if err := zssz.Decode(bytes.NewReader(msg), uint64(len(msg)), &indices, hdrIndicesSSZ); err != nil {
+	var req HeadersRequest
+	if err := zssz.Decode(bytes.NewReader(msg), uint64(len(msg)), &req, hdrRequestSSZ); err != nil {
 		logger.Printf("malformed request: %v", err)
+		return
 	}
-	c.PushHeaders(logger, recv, indices...)
+	if !sort.IsSorted(req.Wanted) {
+		logger.Println("request is malformed; wanted indices are not sorted, ignoring it.")
+		return
+	}
+	max := uint32(len(c.Headers))
+	if max < req.HighestKnown {
+		logger.Println("request is malformed; claiming higher known than available, ignoring it.")
+		return
+	}
+	s := uint32(len(req.Wanted))
+	e := uint32(len(req.Wanted)) + (max - req.HighestKnown)
+	res := make([]uint32, e, e)
+	copy(res[:], req.Wanted)
+	j := s
+	for i := req.HighestKnown; i < max; i++ {
+		res[j] = i
+		j++
+	}
+	c.PushHeaders(logger, recv, res...)
 }
 
 type HeaderIndices []uint32
 
+func (indices HeaderIndices) Len() int {
+	return len(indices)
+}
+
+func (indices HeaderIndices) Less(i, j int) bool {
+	return indices[i] < indices[j]
+}
+
+func (indices HeaderIndices) Swap(i, j int) {
+	indices[i], indices[j] = indices[j], indices[i]
+}
+
 func (*HeaderIndices) Limit() uint64 {
-	return 1 << 32
+	return 1 << 10
 }
 
 var hdrIndicesSSZ = zssz.GetSSZ((*HeaderIndices)(nil))
 
-type Headers []*bh.BeaconBlockHeader
-
-func (*Headers) Limit() uint64 {
-	return 1 << 32
+type HeaderData struct {
+	Header *bh.BeaconBlockHeader
+	Root core.Root
 }
 
-type HeadersMsg struct {
-	HeaderIndices HeaderIndices
+type Headers []*HeaderData
+
+func (*Headers) Limit() uint64 {
+	return 1 << 10
+}
+
+type HeadersRes struct {
+	Indices HeaderIndices
 	Headers Headers
 }
 
-var hdrMsgSSZ = zssz.GetSSZ((*HeadersMsg)(nil))
+var hdrResSSZ = zssz.GetSSZ((*HeadersRes)(nil))
 
 func (c *HeadersChunk) PushHeaders(logger *log.Logger, recv ReceivePort, headers ...uint32) {
-	msg := HeadersMsg{}
+	msg := HeadersRes{}
 	for _, hi := range headers {
 		if hi > uint32(len(c.Headers)) {
 			logger.Printf("Skipping header %d push, only have %d headers", hi, len(c.Headers))
 			continue
 		}
-		msg.HeaderIndices = append(msg.HeaderIndices, hi)
+		msg.Indices = append(msg.Indices, hi)
 		msg.Headers = append(msg.Headers, c.Headers[hi])
 	}
 	var out bytes.Buffer
-	if err := zssz.Encode(&out, &msg, hdrMsgSSZ); err != nil {
+	if err := zssz.Encode(&out, &msg, hdrResSSZ); err != nil {
 		logger.Printf("can't encode headers msg: %v", err)
 		return
 	}
@@ -71,35 +115,43 @@ func (c *HeadersChunk) PushHeaders(logger *log.Logger, recv ReceivePort, headers
 }
 
 type HeadersProducer struct {
-	Headers chan *bh.BeaconBlockHeader
+	Headers chan *HeaderData
 	Logger *log.Logger
 	Closed bool
 }
 
-func simHeader(parent *bh.BeaconBlockHeader) *bh.BeaconBlockHeader {
+func simHeader(parent *HeaderData) *HeaderData {
 	if parent == nil {
 		// TODO: customize genesis?
-		return new(bh.BeaconBlockHeader)
+		h := new(bh.BeaconBlockHeader)
+		return &HeaderData{
+			Header: h,
+			Root:   ssz.HashTreeRoot(h, bh.BeaconBlockHeaderSSZ),
+		}
 	}
-	return &bh.BeaconBlockHeader{
-		Slot: parent.Slot + 1,
-		ParentRoot: ssz.HashTreeRoot(parent, bh.BeaconBlockHeaderSSZ),
+	h := &bh.BeaconBlockHeader{
+		Slot: parent.Header.Slot + 1,
+		ParentRoot: parent.Root,
 		StateRoot:  core.Root{123},
 		BodyRoot:   core.Root{42},
 		Signature:  core.BLSSignature{1,2,3,4},
+	}
+	return &HeaderData{
+		Header: h,
+		Root:   ssz.HashTreeRoot(h, bh.BeaconBlockHeaderSSZ),
 	}
 }
 
 func (hp *HeadersProducer) Mock() {
 	lookback := 10
-	lastX := make([]*bh.BeaconBlockHeader, 0, lookback)
+	lastX := make([]*HeaderData, 0, lookback)
 	i := 0
 	for {
 		if hp.Closed {
 			return
 		}
 		pi := rand.Intn(lookback)
-		var parent *bh.BeaconBlockHeader
+		var parent *HeaderData
 		if len(lastX) > pi {
 			// may be nil
 			parent = lastX[len(lastX) - 1 - pi]
@@ -125,7 +177,7 @@ func (hp *HeadersProducer) Close() {
 func (hp *HeadersProducer) Process(getChunk common.ChunkGetter, getViewing common.ViewersGetter) {
 	for {
 		if h, ok := <-hp.Headers; ok {
-			chunkID := common.ChunkID(h.Slot / slotsPerChunk)
+			chunkID := common.ChunkID(h.Header.Slot / slotsPerChunk)
 			ch := getChunk(chunkID)
 			chH, ok := ch.(WithHeaders)
 			if !ok {
