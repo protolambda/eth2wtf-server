@@ -37,6 +37,6 @@ func (s *Server) World() *world.World {
 	return s.world
 }
 
-func (s *Server) GetViewers(id ChunkID) []ReceivePort {
-	return s.clientHub.GetViewers(id)
+func (s *Server) GetViewers() []Viewer {
+	return s.clientHub.GetViewers()
 }

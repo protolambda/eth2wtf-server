@@ -3,7 +3,7 @@ package msgtyp
 type MsgTypeID byte
 
 const (
-	ChunkRequest MsgTypeID = iota + 1
-	ViewportUpdate
+	EventRangeRequest MsgTypeID = iota + 1
+	EventIndexUpdate
 	// TODO: more types
 )

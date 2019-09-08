@@ -14,9 +14,7 @@ Work in progress project.
 
 0x00: Default, not used.
 
-0x01: Chunkified typed content, request: <uint32: chunk id><request body>
-
-0x02: Update viewport. Server can push events based on client viewport
+TODO
 ```
 
 ### `Server -> Client`
@@ -24,9 +22,7 @@ Work in progress project.
 ```
 <1 byte: msg type><remaining: msg>
 
-0x00: Default, not used.
-
-0x01: Chunkified typed content, serving data: <uint32: chunk id><chunk data>
+TODO
 
 ```
 

@@ -83,11 +83,9 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) GetViewers(id ChunkID) (out []ReceivePort) {
+func (h *Hub) GetViewers() (out []Viewer) {
 	for cl, _ := range h.clients {
-		if cl.IsViewing(id) {
-			out = append(out, cl)
-		}
+		out = append(out, cl)
 	}
 	return
 }

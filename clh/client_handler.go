@@ -3,36 +3,25 @@ package clh
 import (
 	"encoding/binary"
 	. "eth2wtf-server/common"
-	"eth2wtf-server/common/contenttyp"
 	"eth2wtf-server/common/msgtyp"
 	"fmt"
-	"log"
 )
 
-type WorldLike interface {
-	GetChunk(chunkID ChunkID) ChunkHandler
-}
-
 type ClientHandler struct {
-	world    WorldLike
-	logger   *log.Logger
+	rangeHandler RequestHandler
 	send     chan<- []byte
-	viewport Viewport
+	eventIndex uint64
 }
 
-func NewClientHandler(world WorldLike, send chan<- []byte) *ClientHandler {
+func NewClientHandler(rangeHandler RequestHandler, send chan<- []byte) *ClientHandler {
 	return &ClientHandler{
-		world: world,
+		rangeHandler: rangeHandler,
 		send:  send,
 	}
 }
 
-func (ch *ClientHandler) IsViewing(id ChunkID) bool {
-	return id >= ch.viewport.Min && id < ch.viewport.Max
-}
-
-func (ch *ClientHandler) Viewport() Viewport {
-	return ch.viewport
+func (ch *ClientHandler) EventIndex() uint64 {
+	return ch.eventIndex
 }
 
 func (ch *ClientHandler) Close() {
@@ -50,26 +39,22 @@ func (ch *ClientHandler) OnMessage(msg []byte) {
 	}
 	msgType := msg[0]
 	switch msgtyp.MsgTypeID(msgType) {
-	// 1: messages that are content-specific updates.
-	case msgtyp.ChunkRequest:
-		if len(msg) < 6 {
+	case msgtyp.EventRangeRequest:
+		if len(msg) != 17 {
+			fmt.Printf("msg invalid size: %d", len(msg))
 			return
 		}
-		ctID := contenttyp.ContentID(msg[1])
-		chunkID := ChunkID(binary.LittleEndian.Uint32(msg[2:6]))
-		handler := ch.world.GetChunk(chunkID)
-		if handler == nil {
-			fmt.Printf("ignoring request for unknown chunk: type: %d chunk: %d\n", ctID, chunkID)
-		} else {
-			handler.HandleRequest(ch.logger, ch, ctID, msg[6:])
+		start := binary.LittleEndian.Uint64(msg[1:9])
+		end := binary.LittleEndian.Uint64(msg[9:17])
+		fmt.Printf("client requested range [%d, %d)\n", start, end)
+		ch.rangeHandler.HandleRequest(ch, start, end)
+	case msgtyp.EventIndexUpdate:
+		if len(msg) != 9 {
+			fmt.Printf("msg invalid size: %d", len(msg))
+			return
 		}
-	case msgtyp.ViewportUpdate:
-		ch.viewport = Viewport{
-			Min: ChunkID(binary.LittleEndian.Uint32(msg[2:6])),
-			Max: ChunkID(binary.LittleEndian.Uint32(msg[6:10])),
-		}
-		// TODO share viewport with world, use pointer ID
-		fmt.Printf("client changed viewport to [%d, %d]\n", ch.viewport.Min, ch.viewport.Max)
+		ch.eventIndex = binary.LittleEndian.Uint64(msg[1:9])
+		fmt.Printf("client changed event index to %d\n", ch.eventIndex)
 	default:
 		fmt.Printf("unrecognized msgType: %d\n", msgType)
 	}

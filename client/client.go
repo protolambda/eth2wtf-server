@@ -13,7 +13,7 @@ import (
 type ClientHandler interface {
 	Close()
 	OnMessage(msg []byte)
-	IsViewing(id common.ChunkID) bool
+	EventIndex() uint64
 	common.ReceivePort
 }
 
@@ -66,8 +66,8 @@ func NewClient(conn *websocket.Conn, unregister func(), mkHandler MakeClientHand
 	}
 }
 
-func (c *Client) IsViewing(id common.ChunkID) bool {
-	return c.handler.IsViewing(id)
+func (c *Client) EventIndex() uint64 {
+	return c.handler.EventIndex()
 }
 
 func (c *Client) Send(msg []byte) {

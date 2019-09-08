@@ -35,7 +35,8 @@ func main() {
 		Closed:  false,
 	}
 	defer hp.Close()
-	go hp.Process(s.World().CreateChunkMaybe, s.GetViewers)
+	go s.World().Process()
+	go s.World().HeartBeat(s.GetViewers)
 	go hp.Mock()
 	// enable clients to connect
 	go s.Run()
