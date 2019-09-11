@@ -6,7 +6,9 @@ import (
 	. "eth2wtf-server/common"
 	"eth2wtf-server/hub"
 	"eth2wtf-server/world"
+	"log"
 	"net/http"
+	"os"
 )
 
 type Server struct {
@@ -17,7 +19,7 @@ type Server struct {
 func NewServer() *Server {
 	return &Server{
 		clientHub: hub.NewHub(),
-		world:     world.NewWorld(),
+		world:     world.NewWorld(log.New(os.Stdout, "world ", log.LstdFlags)),
 	}
 }
 

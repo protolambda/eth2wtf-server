@@ -13,15 +13,24 @@ func (r ReceivePortFn) Send(msg []byte) {
 }
 
 type RequestHandler interface {
-	HandleRequest(v Viewer, start uint64, end uint64)
+	HandleRequest(v Viewer, start EventIndex, end EventIndex)
 }
 
+type EventType byte
+
+const (
+	HeaderEventID EventType = 1 + iota
+)
+
+type EventIndex uint32
+
 type Event interface {
+	EventType() EventType
 	Serialize(w io.Writer) error
 }
 
 type Viewer interface {
-	EventIndex() uint64
+	EventIndex() EventIndex
 	ReceivePort
 }
 

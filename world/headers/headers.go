@@ -28,6 +28,14 @@ type HeadersProducer struct {
 	Closed bool
 }
 
+func NewHeaderProducer(l *log.Logger) *HeadersProducer {
+	return &HeadersProducer{
+		Headers: make(chan *HeaderData, 10),
+		Logger:  l,
+		Closed:  false,
+	}
+}
+
 func simHeader(parent *HeaderData, seed uint64) *HeaderData {
 	// TODO: customize genesis?
 	var h *bh.BeaconBlockHeader
@@ -50,11 +58,13 @@ func simHeader(parent *HeaderData, seed uint64) *HeaderData {
 }
 
 func (hp *HeadersProducer) Mock() {
-	lookback := 100
+	lookback := 4
 	lastX := make([]*HeaderData, 0, lookback)
 	i := 0
 	for {
+		fmt.Println("mock!")
 		if hp.Closed {
+			fmt.Println("closed mock!")
 			return
 		}
 		pi := rand.Intn(lookback)
@@ -88,6 +98,10 @@ type HeaderEvent struct {
 	hd *HeaderData
 }
 
+func (he *HeaderEvent) EventType() common.EventType {
+	return common.HeaderEventID
+}
+
 func (he *HeaderEvent) Serialize(w io.Writer) error {
 	// TODO could be pooled
 	var buf bytes.Buffer
@@ -95,13 +109,7 @@ func (he *HeaderEvent) Serialize(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	lenVal := [4]byte{}
-	dat := buf.Bytes()
-	binary.LittleEndian.PutUint32(lenVal[:], uint32(len(dat)))
-	if _, err := w.Write(lenVal[:]); err != nil {
-		return err
-	}
-	if _, err := w.Write(dat); err != nil {
+	if _, err := w.Write(buf.Bytes()); err != nil {
 		return err
 	}
 	return nil
@@ -113,14 +121,18 @@ func NewHeaderEvent(hd *HeaderData) *HeaderEvent {
 	}
 }
 
+// TODO
+
 // The only (synchronous) writer to headers of any chunk
 func Process(input chan *HeaderData, output func(ev common.Event) bool) {
 	for {
 		if h, ok := <-input; ok {
 			if !output(NewHeaderEvent(h)) {
+				fmt.Println("detected ev close")
 				break
 			}
 		} else {
+			fmt.Println("closing header pump")
 			break
 		}
 	}

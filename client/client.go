@@ -13,7 +13,7 @@ import (
 type ClientHandler interface {
 	Close()
 	OnMessage(msg []byte)
-	EventIndex() uint64
+	EventIndex() common.EventIndex
 	common.ReceivePort
 }
 
@@ -66,7 +66,7 @@ func NewClient(conn *websocket.Conn, unregister func(), mkHandler MakeClientHand
 	}
 }
 
-func (c *Client) EventIndex() uint64 {
+func (c *Client) EventIndex() common.EventIndex {
 	return c.handler.EventIndex()
 }
 

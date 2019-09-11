@@ -10,7 +10,7 @@ import (
 type ClientHandler struct {
 	rangeHandler RequestHandler
 	send     chan<- []byte
-	eventIndex uint64
+	eventIndex EventIndex
 }
 
 func NewClientHandler(rangeHandler RequestHandler, send chan<- []byte) *ClientHandler {
@@ -20,7 +20,7 @@ func NewClientHandler(rangeHandler RequestHandler, send chan<- []byte) *ClientHa
 	}
 }
 
-func (ch *ClientHandler) EventIndex() uint64 {
+func (ch *ClientHandler) EventIndex() EventIndex {
 	return ch.eventIndex
 }
 
@@ -40,20 +40,20 @@ func (ch *ClientHandler) OnMessage(msg []byte) {
 	msgType := msg[0]
 	switch msgtyp.MsgTypeID(msgType) {
 	case msgtyp.EventRangeRequest:
-		if len(msg) != 17 {
-			fmt.Printf("msg invalid size: %d", len(msg))
+		if len(msg) != 9 {
+			fmt.Printf("msg invalid size: %d\n", len(msg))
 			return
 		}
-		start := binary.LittleEndian.Uint64(msg[1:9])
-		end := binary.LittleEndian.Uint64(msg[9:17])
+		start := EventIndex(binary.LittleEndian.Uint32(msg[1:5]))
+		end := EventIndex(binary.LittleEndian.Uint32(msg[5:9]))
 		fmt.Printf("client requested range [%d, %d)\n", start, end)
 		ch.rangeHandler.HandleRequest(ch, start, end)
 	case msgtyp.EventIndexUpdate:
-		if len(msg) != 9 {
-			fmt.Printf("msg invalid size: %d", len(msg))
+		if len(msg) != 5 {
+			fmt.Printf("msg invalid size: %d\n", len(msg))
 			return
 		}
-		ch.eventIndex = binary.LittleEndian.Uint64(msg[1:9])
+		ch.eventIndex = EventIndex(binary.LittleEndian.Uint32(msg[1:5]))
 		fmt.Printf("client changed event index to %d\n", ch.eventIndex)
 	default:
 		fmt.Printf("unrecognized msgType: %d\n", msgType)

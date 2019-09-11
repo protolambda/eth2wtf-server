@@ -29,11 +29,9 @@ func main() {
 
 	s := server.NewServer()
 
-	hp := &headers.HeadersProducer{
-		Headers: make(chan *headers.HeaderData, 10),
-		Logger:  log.New(os.Stdout, "header producer: ", log.LUTC | log.Lshortfile),
-		Closed:  false,
-	}
+	hp := headers.NewHeaderProducer(log.New(os.Stdout,
+		"header producer: ", log.LUTC | log.Lshortfile))
+	go headers.Process(hp.Headers, s.World().InputEv)
 	defer hp.Close()
 	go s.World().Process()
 	go s.World().HeartBeat(s.GetViewers)
